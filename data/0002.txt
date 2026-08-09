@@ -1,0 +1,9 @@
+T O 0 M    M 0 O T    0 T O M    O T M 0    T M T O    
+O 0 M T    0 O M T    T 0 O M    0 T O M    T M 0 O   
+O M T 0    O 0 M T    T M 0 O    M M T O    0 O M T   
+T O 0 M    M 0 O T    0 T O M    O T M 0    T M T O    
+O 0 M T    0 O M T    T 0 O M    0 T O M    T M 0 O  
+O M T 0    O 0 M T    T M 0 O    M M T O    0 O M T   
+T O 0 M    M 0 O T    0 T O M    O T M 0    T M T O    
+O 0 M T    0 O M T    T 0 O M    0 T O M    T M 0 O   
+O M T 0    O 0 M T    T M 0 O    M M T O    0 O M T
