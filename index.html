@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0f2233">
+  <meta name="description" content="MorseThai - เครื่องมือฝึกหัดรับส่งสัญญาณมอร์สภาษาไทยและภาษาอังกฤษ">
+  <title>MorseThai</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="appHeader">
+    <div class="header-title">
+      <span class="logo">MT</span>
+      <div>
+        <h1>MorseThai</h1>
+        <p class="subtitle">ฝึกหัดรับ-ส่งสัญญาณมอร์ส</p>
+      </div>
+    </div>
+    <button id="btnAbout" class="ghost-btn" type="button">เกี่ยวกับ</button>
+  </header>
+
+  <main>
+    <!-- แปลง/เล่น -->
+    <section id="tab-play" class="tab active">
+      <div class="toolbar">
+        <button id="btnOpenFile" class="ghost-btn" type="button">เปิดไฟล์ .txt</button>
+        <span id="fileNameLabel" class="muted">ยังไม่ได้เปิดไฟล์</span>
+      </div>
+      <textarea id="playInput" class="input-box" rows="6"
+        placeholder="พิมพ์ข้อความภาษาไทยหรือภาษาอังกฤษ แล้วกด เล่น"></textarea>
+      <div class="btn-row">
+        <button id="btnPlay" class="primary-btn" type="button">เล่น</button>
+        <button id="btnStop" class="danger-btn" type="button">หยุด</button>
+        <button id="btnClear" class="ghost-btn" type="button">ล้าง</button>
+      </div>
+      <div class="control-block">
+        <div class="control-row">
+          <label for="unitRange">ความเร็ว (หน่วยเวลา)</label>
+          <span id="unitLabel" class="value-label">70 ms / 17 คำต่อนาที</span>
+        </div>
+        <input type="range" id="unitRange" min="40" max="200" step="5" value="70">
+        <div class="control-row">
+          <label for="volRange">ความดัง</label>
+          <span id="volLabel" class="value-label">60%</span>
+        </div>
+        <input type="range" id="volRange" min="0" max="100" step="5" value="60">
+      </div>
+      <div class="control-row">
+        <span id="timeLabel" class="value-label time-label">เวลา 00:00</span>
+        <label class="switch">
+          <input type="checkbox" id="showMorse">
+          <span>แสดงรหัสมอร์ส</span>
+        </label>
+      </div>
+      <pre id="morsePreview" class="morse-preview hidden"></pre>
+    </section>
+
+    <!-- สุ่มฝึก -->
+    <section id="tab-random" class="tab">
+      <h2>ฝึกฟังแบบสุ่ม</h2>
+      <div class="btn-grid">
+        <button id="btnRndThai" class="primary-btn" type="button">สุ่มข้อความไทย</button>
+        <button id="btnRndEng" class="primary-btn" type="button">สุ่มข้อความอังกฤษ</button>
+        <button id="btnRndDigit" class="primary-btn" type="button">สุ่มตัวเลข</button>
+        <button id="btnRndChar" class="primary-btn" type="button">สุ่มตัวอักษร</button>
+      </div>
+      <div id="rndView" class="input-box viewer" tabindex="0"></div>
+      <div class="btn-row">
+        <button id="btnRndPlay" class="primary-btn" type="button">เล่น</button>
+        <button id="btnRndStop" class="danger-btn" type="button">หยุด</button>
+        <button id="btnRndAgain" class="ghost-btn" type="button">สุ่มใหม่</button>
+      </div>
+      <div class="control-block">
+        <div class="control-row">
+          <label for="rndUnitRange">ความเร็ว (หน่วยเวลา)</label>
+          <span id="rndUnitLabel" class="value-label">70 ms / 17 คำต่อนาที</span>
+        </div>
+        <input type="range" id="rndUnitRange" min="40" max="200" step="5" value="70">
+        <div class="control-row">
+          <label for="rndVolRange">ความดัง</label>
+          <span id="rndVolLabel" class="value-label">60%</span>
+        </div>
+        <input type="range" id="rndVolRange" min="0" max="100" step="5" value="60">
+      </div>
+      <span id="rndTimeLabel" class="value-label time-label">เวลา 00:00</span>
+    </section>
+
+    <!-- บทเรียน -->
+    <section id="tab-lessons" class="tab">
+      <h2>บทเรียน</h2>
+      <div class="toolbar">
+        <select id="lessonSelect"></select>
+        <button id="btnLoadLesson" class="primary-btn" type="button">โหลด</button>
+      </div>
+      <div id="lessonView" class="input-box viewer" tabindex="0"></div>
+      <div class="btn-row">
+        <button id="btnLessonPlay" class="primary-btn" type="button">เล่นบทเรียน</button>
+        <button id="btnLessonStop" class="danger-btn" type="button">หยุด</button>
+      </div>
+      <div class="control-block">
+        <div class="control-row">
+          <label for="lessonUnitRange">ความเร็ว (หน่วยเวลา)</label>
+          <span id="lessonUnitLabel" class="value-label">70 ms / 17 คำต่อนาที</span>
+        </div>
+        <input type="range" id="lessonUnitRange" min="40" max="200" step="5" value="70">
+        <div class="control-row">
+          <label for="lessonVolRange">ความดัง</label>
+          <span id="lessonVolLabel" class="value-label">60%</span>
+        </div>
+        <input type="range" id="lessonVolRange" min="0" max="100" step="5" value="60">
+      </div>
+      <span id="lessonTimeLabel" class="value-label time-label">เวลา 00:00</span>
+      <p class="muted note">เรียงบทเรียนตามหลักการฝึกแบบค่อยเป็นค่อยไป
+        (TMO0 → EISH5 → ARDC → NUP → WF1 → GL/ → B29 → J38 → KV6 → Q7 → XZ → Y4 → เครื่องหมาย)</p>
+    </section>
+
+    <!-- ตาราง -->
+    <section id="tab-table" class="tab">
+      <h2>ตารางรหัสมอร์ส</h2>
+      <div class="btn-row centered">
+        <button id="btnTableEn" class="toggle-btn active" type="button">ภาษาอังกฤษ</button>
+        <button id="btnTableTh" class="toggle-btn" type="button">ภาษาไทย</button>
+      </div>
+      <div id="morseGrid" class="morse-grid"></div>
+    </section>
+
+    <!-- ปุ่มเคาะ -->
+    <section id="tab-key" class="tab">
+      <h2>ปุ่มเคาะมอร์ส</h2>
+      <p class="muted note">กดปุ่มค้างไว้เพื่อส่งเสียงสัญญาณ ปล่อยเพื่อหยุด
+        ลองเคาะตามจังหวะ จุดสั้น หน่อย จุดยาว หน่อย</p>
+      <div id="morseKeyBtn" class="key-btn">กดค้างเพื่อส่งสัญญาณ</div>
+      <p id="keyStatus" class="value-label muted">พร้อมใช้งาน</p>
+      <div class="key-hint">
+        <span class="hint-dot">จุด</span>
+        <span class="hint-dash">เส้น</span>
+      </div>
+    </section>
+  </main>
+
+  <nav id="bottomNav">
+    <button data-tab="tab-play" class="nav-btn active" type="button">แปลง</button>
+    <button data-tab="tab-random" class="nav-btn" type="button">สุ่ม</button>
+    <button data-tab="tab-lessons" class="nav-btn" type="button">บทเรียน</button>
+    <button data-tab="tab-table" class="nav-btn" type="button">ตาราง</button>
+    <button data-tab="tab-key" class="nav-btn" type="button">เคาะ</button>
+  </nav>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <h3>MorseThai</h3>
+      <p>เวอร์ชัน PWA สำหรับมือถือ (iOS/Android)</p>
+      <p class="muted">จำลองจากโปรแกรม MorseThai 1.6.7
+        โดย Sateanpong Wongsakaenjun (ส.ค. 2565)
+        นักเรียนจ่าทหารเรือรุ่น 46 เหล่าสัญญาณวิทยุ</p>
+      <p class="muted">- ความเร็วอังกฤษ 60 ms ประมาณ 20 คำ/นาที<br>
+        - ความเร็วไทย 70 ms ประมาณ 18 คำ/นาที<br>
+        - ไฟล์ .txt ที่เปิดต้องเป็น UTF-8</p>
+      <button id="btnModalClose" class="primary-btn" type="button">ปิด</button>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept=".txt,text/plain" hidden>
+
+  <script src="js/morse-data.js"></script>
+  <script src="js/text-data.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
