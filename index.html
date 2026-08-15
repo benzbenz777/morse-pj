@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
@@ -45,15 +45,24 @@
         <input type="range" id="unitRange" min="40" max="200" step="5" value="70">
         <div class="control-row">
           <label for="volRange">ความดัง</label>
-          <span id="volLabel" class="value-label">60%</span>
+          <span id="volLabel" class="value-label">80%</span>
         </div>
-        <input type="range" id="volRange" min="0" max="100" step="5" value="60">
+        <input type="range" id="volRange" min="0" max="100" step="5" value="80">
+        <div class="control-row">
+          <label for="freqRange">ความถี่ (Pitch)</label>
+          <span id="freqLabel" class="value-label">700 Hz</span>
+        </div>
+        <input type="range" id="freqRange" min="300" max="1000" step="25" value="700">
       </div>
       <div class="control-row">
         <span id="timeLabel" class="value-label time-label">เวลา 00:00</span>
         <label class="switch">
           <input type="checkbox" id="showMorse">
           <span>แสดงรหัสมอร์ส</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="stationMode" checked>
+          <span>เรียกสถานี VVV…AR</span>
         </label>
       </div>
       <pre id="morsePreview" class="morse-preview hidden"></pre>
@@ -82,9 +91,14 @@
         <input type="range" id="rndUnitRange" min="40" max="200" step="5" value="70">
         <div class="control-row">
           <label for="rndVolRange">ความดัง</label>
-          <span id="rndVolLabel" class="value-label">60%</span>
+          <span id="rndVolLabel" class="value-label">80%</span>
         </div>
-        <input type="range" id="rndVolRange" min="0" max="100" step="5" value="60">
+        <input type="range" id="rndVolRange" min="0" max="100" step="5" value="80">
+        <div class="control-row">
+          <label for="rndFreqRange">ความถี่ (Pitch)</label>
+          <span id="rndFreqLabel" class="value-label">700 Hz</span>
+        </div>
+        <input type="range" id="rndFreqRange" min="300" max="1000" step="25" value="700">
       </div>
       <span id="rndTimeLabel" class="value-label time-label">เวลา 00:00</span>
     </section>
@@ -109,9 +123,14 @@
         <input type="range" id="lessonUnitRange" min="40" max="200" step="5" value="70">
         <div class="control-row">
           <label for="lessonVolRange">ความดัง</label>
-          <span id="lessonVolLabel" class="value-label">60%</span>
+          <span id="lessonVolLabel" class="value-label">80%</span>
         </div>
-        <input type="range" id="lessonVolRange" min="0" max="100" step="5" value="60">
+        <input type="range" id="lessonVolRange" min="0" max="100" step="5" value="80">
+        <div class="control-row">
+          <label for="lessonFreqRange">ความถี่ (Pitch)</label>
+          <span id="lessonFreqLabel" class="value-label">700 Hz</span>
+        </div>
+        <input type="range" id="lessonFreqRange" min="300" max="1000" step="25" value="700">
       </div>
       <span id="lessonTimeLabel" class="value-label time-label">เวลา 00:00</span>
       <p class="muted note">เรียงบทเรียนตามหลักการฝึกแบบค่อยเป็นค่อยไป
@@ -125,7 +144,7 @@
         <button id="btnTableEn" class="toggle-btn active" type="button">ภาษาอังกฤษ</button>
         <button id="btnTableTh" class="toggle-btn" type="button">ภาษาไทย</button>
       </div>
-      <div id="morseGrid" class="morse-grid"></div>
+      <div id="morseGrid"></div>
     </section>
 
     <!-- ปุ่มเคาะ -->
@@ -138,6 +157,18 @@
       <div class="key-hint">
         <span class="hint-dot">จุด</span>
         <span class="hint-dash">เส้น</span>
+      </div>
+      <div class="control-block">
+        <div class="control-row">
+          <label for="keyVolRange">ความดัง</label>
+          <span id="keyVolLabel" class="value-label">80%</span>
+        </div>
+        <input type="range" id="keyVolRange" min="0" max="100" step="5" value="80">
+        <div class="control-row">
+          <label for="keyFreqRange">ความถี่ (Pitch)</label>
+          <span id="keyFreqLabel" class="value-label">700 Hz</span>
+        </div>
+        <input type="range" id="keyFreqRange" min="300" max="1000" step="25" value="700">
       </div>
     </section>
   </main>

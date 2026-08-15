@@ -1,4 +1,4 @@
-const CACHE = 'morsethai-v6';
+const CACHE = 'morsethai-v7';
 const ASSETS = [
   './',
   './index.html',
