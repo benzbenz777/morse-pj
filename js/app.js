@@ -4,11 +4,13 @@
   const $ = (id) => document.getElementById(id);
 
   let unitMs = MorseAudio.DEFAULT_UNIT_MS;
-  let volume = 0.6;
+  let volume = 0.8;
+  let freq = MorseAudio.DEFAULT_FREQ;
   let timeTimer = null;
   let timeStart = 0;
   let lastRandom = '';
   let tableMode = 'en';
+  let stationMode = true;
 
   // ---------- เจเนอรัล ----------
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
@@ -41,10 +43,12 @@
     $('volLabel').textContent = txt;
     $('rndVolLabel').textContent = txt;
     $('lessonVolLabel').textContent = txt;
+    $('keyVolLabel').textContent = txt;
   }
 
   function setUnit(ms) {
     unitMs = ms;
+    MorseAudio.retime(ms);
     $('unitRange').value = ms;
     $('rndUnitRange').value = ms;
     $('lessonUnitRange').value = ms;
@@ -56,7 +60,26 @@
     $('volRange').value = Math.round(v * 100);
     $('rndVolRange').value = Math.round(v * 100);
     $('lessonVolRange').value = Math.round(v * 100);
+    $('keyVolRange').value = Math.round(v * 100);
     updateVolLabel();
+  }
+
+  function updateFreqLabel() {
+    const txt = freq + ' Hz';
+    $('freqLabel').textContent = txt;
+    $('rndFreqLabel').textContent = txt;
+    $('lessonFreqLabel').textContent = txt;
+    $('keyFreqLabel').textContent = txt;
+  }
+  function setFreq(f) {
+    freq = f;
+    MorseAudio.setFreq(f);
+    if (keyOsc) { try { keyOsc.frequency.value = f; } catch (e) {} }
+    $('freqRange').value = f;
+    $('rndFreqRange').value = f;
+    $('lessonFreqRange').value = f;
+    $('keyFreqRange').value = f;
+    updateFreqLabel();
   }
 
   function renderPreview() {
@@ -109,28 +132,52 @@
   }
 
   // ---------- การเล่น ----------
+  // ส่งเรียกสถานีแบบเดียวกับโปรแกรมต้นฉบับ 1.6.7:
+  //   VVV [9u] = (BT) [9u] ข้อความ [12u] = (BT) [6u] AR
+  // ('=' = -...- คือ BT, AR ส่งเป็น อักษร A แล้ว R)
+  const INTRO_TOKENS = [
+    { type: 'char', char: 'V', code: '...-', index: -1 },
+    { type: 'char', char: 'V', code: '...-', index: -1 },
+    { type: 'char', char: 'V', code: '...-', index: -1 },
+    { type: 'gap', units: 6, index: -1 },
+    { type: 'char', char: '=', code: '-...-', index: -1 },
+    { type: 'gap', units: 6, index: -1 }
+  ];
+  const OUTRO_TOKENS = [
+    { type: 'gap', units: 9, index: -1 },
+    { type: 'char', char: '=', code: '-...-', index: -1 },
+    { type: 'gap', units: 3, index: -1 },
+    { type: 'char', char: 'A', code: '.-', index: -1 },
+    { type: 'char', char: 'R', code: '.-.', index: -1 }
+  ];
+  function buildPlayTokens(tokens) {
+    if (!stationMode) return tokens;
+    return INTRO_TOKENS.concat(tokens, OUTRO_TOKENS);
+  }
+
   function playText(text, timeLabel, hl) {
-    const tokens = textToMorse(text);
+    const tokens = buildPlayTokens(textToMorse(text));
     MorseAudio.stop();
     if (hl && hl.type === 'viewer') {
       const el = hl.el.querySelector('span.playing');
       if (el) el.classList.remove('playing');
     }
-    const dur = MorseAudio.play(tokens, unitMs, function (idx) {
+    MorseAudio.play(tokens, unitMs, function (idx) {
       if (!hl) return;
       if (hl.type === 'viewer') setViewerHighlight(hl.el, hl.els, idx);
       else if (hl.type === 'textarea') setTextareaHighlight(hl.el, idx);
-    });
-    if (dur <= 0) {
-      if (timeLabel) $(timeLabel).textContent = 'เวลา 00:00';
-      else $('timeLabel').textContent = 'เวลา 00:00';
-      return;
-    }
-    startClock(timeLabel);
-    MorseAudio.onStop(function () {
-      stopClock();
-      const l = timeLabel ? $(timeLabel) : $('timeLabel');
-      l.textContent = 'เวลา 00:00';
+    }).then(function (dur) {
+      if (dur <= 0) {
+        if (timeLabel) $(timeLabel).textContent = 'เวลา 00:00';
+        else $('timeLabel').textContent = 'เวลา 00:00';
+        return;
+      }
+      startClock(timeLabel);
+      MorseAudio.onStop(function () {
+        stopClock();
+        const l = timeLabel ? $(timeLabel) : $('timeLabel');
+        l.textContent = 'เวลา 00:00';
+      });
     });
   }
 
@@ -168,6 +215,9 @@
   });
   $('playInput').addEventListener('input', renderPreview);
   $('showMorse').addEventListener('change', renderPreview);
+  $('stationMode').addEventListener('change', function () {
+    stationMode = this.checked;
+  });
 
   // ---------- สปีด / ความดัง ----------
   $('unitRange').addEventListener('input', function () {
@@ -187,6 +237,21 @@
   });
   $('lessonVolRange').addEventListener('input', function () {
     setVol(parseInt(this.value, 10) / 100);
+  });
+  $('keyVolRange').addEventListener('input', function () {
+    setVol(parseInt(this.value, 10) / 100);
+  });
+  $('freqRange').addEventListener('input', function () {
+    setFreq(parseInt(this.value, 10));
+  });
+  $('rndFreqRange').addEventListener('input', function () {
+    setFreq(parseInt(this.value, 10));
+  });
+  $('lessonFreqRange').addEventListener('input', function () {
+    setFreq(parseInt(this.value, 10));
+  });
+  $('keyFreqRange').addEventListener('input', function () {
+    setFreq(parseInt(this.value, 10));
   });
 
   // ---------- สุ่ม ----------
@@ -275,18 +340,75 @@
   });
 
   // ---------- ตาราง ----------
+  const TH_CATEGORIES = [
+    {
+      title: 'พยัญชนะ',
+      chars: ['ก','ข','ฃ','ค','ฅ','ฆ','ง','จ','ฉ','ช','ฌ','ซ','ญ','ฎ','ฏ','ฐ','ฑ','ฒ','ณ','ด','ต','ถ','ท','ธ','น','บ','ป','ผ','ฝ','พ','ฟ','ภ','ม','ย','ร','ล','ว','ศ','ษ','ส','ห','ฬ','อ','ฮ']
+    },
+    {
+      title: 'สระ',
+      chars: ['ะ','า','ิ','ี','ึ','ื','ุ','ู','เ','แ','โ','ใ','ไ','ำ','ฤ','ฦ','ฤๅ']
+    },
+    {
+      title: 'วรรณยุกต์',
+      chars: ['่','้','๊','๋']
+    },
+    {
+      title: 'เครื่องหมาย',
+      chars: ['ั','็','์','ฯ','ๆ']
+    },
+    {
+      title: 'ตัวเลขไทย',
+      chars: ['๐','๑','๒','๓','๔','๕','๖','๗','๘','๙']
+    }
+  ];
+  const EN_CATEGORIES = [
+    { title: 'ตัวอักษร', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('') },
+    { title: 'ตัวเลข', chars: '0123456789'.split('') },
+    {
+      title: 'สัญลักษณ์',
+      chars: ['.',',','?',"'",'!','/','(',')','&',':',';','=','+','-','_','"','$','@','–','—','−','“','”','‘','’']
+    }
+  ];
+
+  function buildSection(cat, map, container) {
+    const byCode = {};
+    cat.chars.forEach(function (k) {
+      if (!map[k]) return;
+      const code = map[k];
+      if (!byCode[code]) byCode[code] = [];
+      byCode[code].push(k);
+    });
+    const codes = Object.keys(byCode);
+    if (codes.length === 0) return;
+    const sec = document.createElement('div');
+    sec.className = 'table-section';
+    const h = document.createElement('h3');
+    h.className = 'table-title';
+    h.textContent = cat.title;
+    sec.appendChild(h);
+    const g = document.createElement('div');
+    g.className = 'morse-grid';
+    codes.sort(function (a, b) {
+      return byCode[a][0].localeCompare(byCode[b][0], 'th');
+    });
+    codes.forEach(function (code) {
+      const cell = document.createElement('div');
+      cell.className = 'morse-cell';
+      cell.innerHTML = '<span class="char">' + byCode[code].join(',') + '</span><span class="code">' + code + '</span>';
+      g.appendChild(cell);
+    });
+    sec.appendChild(g);
+    container.appendChild(sec);
+  }
+
   function buildTable() {
     const grid = $('morseGrid');
     grid.innerHTML = '';
     const map = tableMode === 'en' ? EN_MORSE : TH_MORSE;
-    const keys = Object.keys(map).sort(function (a, b) {
-      return a.localeCompare(b, 'th');
-    });
-    keys.forEach(function (k) {
-      const cell = document.createElement('div');
-      cell.className = 'morse-cell';
-      cell.innerHTML = '<span class="char">' + k + '</span><span class="code">' + map[k] + '</span>';
-      grid.appendChild(cell);
+    const cats = tableMode === 'en' ? EN_CATEGORIES : TH_CATEGORIES;
+    cats.forEach(function (cat) {
+      buildSection(cat, map, grid);
     });
   }
   $('btnTableEn').addEventListener('click', function () {
@@ -310,6 +432,7 @@
 
   function keyStart() {
     const ctx = MorseAudio.ensureCtx();
+    if (keyOsc) return;
     keyDownTime = Date.now();
     keyBtn.classList.add('pressed');
     keyBtn.textContent = 'ส่งสัญญาณ...';
@@ -317,19 +440,30 @@
     keyOsc = ctx.createOscillator();
     keyGain = ctx.createGain();
     keyOsc.type = 'sine';
-    keyOsc.frequency.value = 700;
+    keyOsc.frequency.value = freq;
     keyGain.gain.value = volume;
     keyOsc.connect(keyGain);
-    keyGain.connect(ctx.destination);
-    keyOsc.start();
+    keyGain.connect(MorseAudio.compressorTarget() || ctx.destination);
+    const startTone = function () {
+      if (keyOsc) keyOsc.start();
+    };
+    if (ctx.state === 'running') startTone();
+    else ctx.resume().then(startTone);
   }
   function keyEnd() {
-    if (keyOsc) {
-      try { keyOsc.stop(); } catch (e) {}
-      keyOsc.disconnect();
+    if (keyOsc && keyGain) {
+      const ctx = MorseAudio.ensureCtx();
+      const g = keyGain;
+      try {
+        const now = ctx.currentTime;
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(0, now + 0.01);
+        keyOsc.stop(now + 0.02);
+      } catch (e) {}
       keyOsc = null;
+      keyGain = null;
     }
-    if (keyGain) { keyGain.disconnect(); keyGain = null; }
     keyBtn.classList.remove('pressed');
     keyBtn.textContent = 'กดค้างเพื่อส่งสัญญาณ';
     const dur = Date.now() - keyDownTime;
@@ -365,6 +499,7 @@
   MorseAudio.setVolume(volume);
   updateSpeedLabel();
   updateVolLabel();
+  setFreq(freq);
   buildTable();
   loadLesson();
 
