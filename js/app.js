@@ -3,14 +3,34 @@
 (function () {
   const $ = (id) => document.getElementById(id);
 
-  let unitMs = MorseAudio.DEFAULT_UNIT_MS;
-  let volume = 0.8;
-  let freq = MorseAudio.DEFAULT_FREQ;
+  // ---------- จำการตั้งค่า ----------
+  const LS_KEY = 'morsethai:prefs:v1';
+  function loadPrefs() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return {};
+      return JSON.parse(raw) || {};
+    } catch (e) { return {}; }
+  }
+  function savePrefs() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        unitMs: unitMs, volume: volume, freq: freq,
+        stationMode: stationMode, tableMode: tableMode,
+        hideAnswer: hideAnswer,
+        lessonIdx: (typeof lessonSel !== 'undefined' && lessonSel) ? parseInt(lessonSel.value, 10) || 0 : 0
+      }));
+    } catch (e) {}
+  }
+  const _prefs = loadPrefs();
+  let unitMs = _prefs.unitMs || MorseAudio.DEFAULT_UNIT_MS;
+  let volume = _prefs.volume != null ? _prefs.volume : 0.8;
+  let freq = _prefs.freq || MorseAudio.DEFAULT_FREQ;
   let timeTimer = null;
   let timeStart = 0;
   let lastRandom = '';
-  let tableMode = 'en';
-  let stationMode = true;
+  let tableMode = _prefs.tableMode || 'en';
+  let stationMode = _prefs.stationMode != null ? _prefs.stationMode : true;
 
   // ---------- เจเนอรัล ----------
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
@@ -53,6 +73,7 @@
     $('rndUnitRange').value = ms;
     $('lessonUnitRange').value = ms;
     updateSpeedLabel();
+    savePrefs();
   }
   function setVol(v) {
     volume = v;
@@ -62,6 +83,7 @@
     $('lessonVolRange').value = Math.round(v * 100);
     $('keyVolRange').value = Math.round(v * 100);
     updateVolLabel();
+    savePrefs();
   }
 
   function updateFreqLabel() {
@@ -80,6 +102,7 @@
     $('lessonFreqRange').value = f;
     $('keyFreqRange').value = f;
     updateFreqLabel();
+    savePrefs();
   }
 
   function renderPreview() {
@@ -87,12 +110,16 @@
     const box = $('morsePreview');
     if (!on) { box.classList.add('hidden'); return; }
     const tokens = textToMorse($('playInput').value);
+    const skipped = tokens.filter(function (t) { return t.type === 'skip'; }).map(function (t) { return t.char; });
+    const uniq = skipped.filter(function (c, i, a) { return a.indexOf(c) === i; }).join(' ');
     const out = tokens.map(function (tk) {
       if (tk.type === 'space') return '   ';
       if (tk.type === 'char') return tk.code;
       return '';
     }).join(' ');
-    box.textContent = out.trim() || '(ไม่มีข้อความที่แปลงได้)';
+    let txt = out.trim() || '(ไม่มีข้อความที่แปลงได้)';
+    if (uniq) txt += '\nข้าม: ' + uniq;
+    box.textContent = txt;
     box.classList.remove('hidden');
   }
 
@@ -156,7 +183,10 @@
   }
 
   function playText(text, timeLabel, hl) {
-    const tokens = buildPlayTokens(textToMorse(text));
+    const raw = textToMorse(text);
+    const hasChar = raw.some(function (t) { return t.type === 'char'; });
+    if (!hasChar) return;
+    const tokens = buildPlayTokens(raw);
     MorseAudio.stop();
     if (hl && hl.type === 'viewer') {
       const el = hl.el.querySelector('span.playing');
@@ -186,13 +216,23 @@
   $('fileInput').addEventListener('change', function () {
     const f = this.files && this.files[0];
     if (!f) return;
+    if (f.size > 1024 * 1024) {
+      $('fileNameLabel').textContent = 'ไฟล์ใหญ่เกิน 1MB';
+      this.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = function (e) {
       $('playInput').value = e.target.result;
       $('fileNameLabel').textContent = f.name;
       renderPreview();
     };
-    reader.readAsText(f, 'utf-8');
+    reader.onerror = function () {
+      $('fileNameLabel').textContent = 'อ่านไฟล์ไม่สำเร็จ';
+    };
+    try { reader.readAsText(f, 'utf-8'); } catch (e) {
+      $('fileNameLabel').textContent = 'อ่านไฟล์ไม่สำเร็จ';
+    }
     this.value = '';
   });
 
@@ -209,6 +249,9 @@
     $('timeLabel').textContent = 'เวลา 00:00';
   });
   $('btnClear').addEventListener('click', function () {
+    MorseAudio.stop();
+    stopClock();
+    $('timeLabel').textContent = 'เวลา 00:00';
     $('playInput').value = '';
     $('fileNameLabel').textContent = 'ยังไม่ได้เปิดไฟล์';
     renderPreview();
@@ -217,6 +260,7 @@
   $('showMorse').addEventListener('change', renderPreview);
   $('stationMode').addEventListener('change', function () {
     stationMode = this.checked;
+    savePrefs();
   });
 
   // ---------- สปีด / ความดัง ----------
@@ -256,6 +300,8 @@
 
   // ---------- สุ่ม ----------
   let rndEls = [];
+  let hideAnswer = _prefs.hideAnswer != null ? _prefs.hideAnswer : true;
+  let _revealed = false;
   function getText(file) { return TEXT_DATA[file] || ''; }
   function pickLine(text) {
     const lines = text.split(/\r?\n/)
@@ -265,10 +311,34 @@
     return lines[Math.floor(Math.random() * lines.length)];
   }
 
+  function updateRevealBtn() {
+    const btn = $('btnRndReveal');
+    if (!btn) return;
+    if (!lastRandom) { btn.classList.add('hidden'); return; }
+    btn.classList.toggle('hidden', !hideAnswer || _revealed);
+  }
+  function maskedText(s) {
+    return s.replace(/[^\s]/g, '•');
+  }
   function setRandomText(s) {
     lastRandom = s;
-    rndEls = buildViewer($('rndView'), s);
+    _revealed = false;
+    if (hideAnswer && s) {
+      rndEls = buildViewer($('rndView'), maskedText(s));
+      $('rndView').dataset.masked = '1';
+    } else {
+      rndEls = buildViewer($('rndView'), s);
+      $('rndView').dataset.masked = '0';
+    }
     if (!s) $('rndView').innerHTML = '<span class="muted">กดปุ่มสุ่มเพื่อฝึกฟัง</span>';
+    updateRevealBtn();
+  }
+  function revealAnswer() {
+    if (!lastRandom || _revealed) return;
+    _revealed = true;
+    rndEls = buildViewer($('rndView'), lastRandom);
+    $('rndView').dataset.masked = '0';
+    updateRevealBtn();
   }
 
   function randomThai() { setRandomText(pickLine(getText('thaiText.txt'))); }
@@ -276,7 +346,7 @@
   function randomDigit() {
     const n = 5 + Math.floor(Math.random() * 5);
     let s = '';
-    const digits = '123456789';
+    const digits = '0123456789';
     for (let i = 0; i < n; i++) s += digits[Math.floor(Math.random() * digits.length)];
     setRandomText(s);
   }
@@ -301,25 +371,63 @@
   });
   $('btnRndPlay').addEventListener('click', function () {
     MorseAudio.ensureCtx();
-    playText(lastRandom, 'rndTimeLabel', { type: 'viewer', el: $('rndView'), els: rndEls });
+    const useHl = (!hideAnswer || _revealed);
+    const hl = useHl ? { type: 'viewer', el: $('rndView'), els: rndEls } : null;
+    playText(lastRandom, 'rndTimeLabel', hl);
   });
   $('btnRndStop').addEventListener('click', function () {
     MorseAudio.stop();
     stopClock();
     $('rndTimeLabel').textContent = 'เวลา 00:00';
   });
+  $('hideAnswer').addEventListener('change', function () {
+    hideAnswer = this.checked;
+    savePrefs();
+    if (lastRandom) {
+      if (hideAnswer) {
+        _revealed = false;
+        rndEls = buildViewer($('rndView'), maskedText(lastRandom));
+        $('rndView').dataset.masked = '1';
+      } else {
+        _revealed = true;
+        rndEls = buildViewer($('rndView'), lastRandom);
+        $('rndView').dataset.masked = '0';
+      }
+      updateRevealBtn();
+    }
+  });
+  $('btnRndReveal').addEventListener('click', revealAnswer);
 
   // ---------- บทเรียน ----------
   const lessonSel = $('lessonSelect');
-  LESSONS.forEach(function (ls, i) {
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = ls.title;
-    lessonSel.appendChild(opt);
-  });
+  (function buildLessonOpts() {
+    const groups = { 'Eng': [], 'ไทย': [], 'พิเศษ': [] };
+    LESSONS.forEach(function (ls, i) {
+      if (ls.title.indexOf('พิเศษ') === 0) groups['พิเศษ'].push({ ls: ls, i: i });
+      else if (ls.title.indexOf('ไทย') === 0) groups['ไทย'].push({ ls: ls, i: i });
+      else groups['Eng'].push({ ls: ls, i: i });
+    });
+    [['Eng', 'อังกฤษ'], ['ไทย', 'ไทย'], ['พิเศษ', 'พิเศษ']].forEach(function (pair) {
+      const key = pair[0], label = pair[1];
+      if (groups[key].length === 0) return;
+      const og = document.createElement('optgroup');
+      og.label = label + ' (' + groups[key].length + ' บท)';
+      groups[key].forEach(function (g) {
+        const opt = document.createElement('option');
+        opt.value = g.i;
+        opt.textContent = g.ls.title;
+        og.appendChild(opt);
+      });
+      lessonSel.appendChild(og);
+    });
+  })();
 
   let lessonEls = [];
   function loadLesson() {
+    MorseAudio.stop();
+    stopClock();
+    const cur = lessonSel.value ? $('lessonTimeLabel') : null;
+    if (cur) cur.textContent = 'เวลา 00:00';
     const ls = LESSONS[parseInt(lessonSel.value, 10)];
     lessonEls = buildViewer($('lessonView'), getText(ls.file));
     if (getText(ls.file).trim().length === 0) {
@@ -327,7 +435,7 @@
     }
   }
   $('btnLoadLesson').addEventListener('click', loadLesson);
-  lessonSel.addEventListener('change', loadLesson);
+  lessonSel.addEventListener('change', function () { savePrefs(); loadLesson(); });
   $('btnLessonPlay').addEventListener('click', function () {
     MorseAudio.ensureCtx();
     playText(getText(LESSONS[parseInt(lessonSel.value, 10)].file), 'lessonTimeLabel',
@@ -416,12 +524,14 @@
     $('btnTableEn').classList.add('active');
     $('btnTableTh').classList.remove('active');
     buildTable();
+    savePrefs();
   });
   $('btnTableTh').addEventListener('click', function () {
     tableMode = 'th';
     $('btnTableTh').classList.add('active');
     $('btnTableEn').classList.remove('active');
     buildTable();
+    savePrefs();
   });
 
   // ---------- ปุ่มเคาะ (MorseKey) ----------
@@ -435,8 +545,10 @@
     if (keyOsc) return;
     keyDownTime = Date.now();
     keyBtn.classList.add('pressed');
+    keyBtn.setAttribute('aria-pressed', 'true');
     keyBtn.textContent = 'ส่งสัญญาณ...';
     $('keyStatus').textContent = 'ส่งสัญญาณ';
+    try { if (navigator.vibrate) navigator.vibrate(20); } catch (e) {}
     keyOsc = ctx.createOscillator();
     keyGain = ctx.createGain();
     keyOsc.type = 'sine';
@@ -465,34 +577,60 @@
       keyGain = null;
     }
     keyBtn.classList.remove('pressed');
+    keyBtn.setAttribute('aria-pressed', 'false');
     keyBtn.textContent = 'กดค้างเพื่อส่งสัญญาณ';
     const dur = Date.now() - keyDownTime;
-    $('keyStatus').textContent = dur + ' ms' + (dur < 200 ? ' (จุด)' : ' (เส้น)');
+    const thresh = unitMs * 3;
+    $('keyStatus').textContent = dur + ' ms' + (dur < thresh ? ' (จุด)' : ' (เส้น)');
+    try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
   }
   keyBtn.addEventListener('pointerdown', function (e) { e.preventDefault(); keyStart(); });
   keyBtn.addEventListener('pointerup', keyEnd);
   keyBtn.addEventListener('pointercancel', keyEnd);
   keyBtn.addEventListener('pointerleave', keyEnd);
+  keyBtn.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); keyStart(); }
+  });
+  keyBtn.addEventListener('keyup', function (e) {
+    if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); keyEnd(); }
+  });
+  keyBtn.addEventListener('blur', keyEnd);
 
   // ---------- Tabs ----------
   document.querySelectorAll('.nav-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('.nav-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.nav-btn').forEach(function (b) {
+        b.classList.remove('active');
+        b.removeAttribute('aria-current');
+      });
       document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
       btn.classList.add('active');
+      btn.setAttribute('aria-current', 'page');
       $(btn.dataset.tab).classList.add('active');
       if (btn.dataset.tab === 'tab-table') buildTable();
     });
   });
 
   // ---------- About modal ----------
-  $('btnAbout').addEventListener('click', function () { $('modal').classList.remove('hidden'); });
-  $('btnModalClose').addEventListener('click', function () { $('modal').classList.add('hidden'); });
+  let _modalPrevFocus = null;
+  function openModal() {
+    _modalPrevFocus = document.activeElement;
+    $('modal').classList.remove('hidden');
+    $('modal').setAttribute('aria-hidden', 'false');
+    try { $('btnModalClose').focus(); } catch (e) {}
+  }
+  function closeModal() {
+    $('modal').classList.add('hidden');
+    $('modal').setAttribute('aria-hidden', 'true');
+    if (_modalPrevFocus) { try { _modalPrevFocus.focus(); } catch (e) {} }
+  }
+  $('btnAbout').addEventListener('click', openModal);
+  $('btnModalClose').addEventListener('click', closeModal);
   $('modal').addEventListener('click', function (e) {
-    if (e.target === this) this.classList.add('hidden');
+    if (e.target === this) closeModal();
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') $('modal').classList.add('hidden');
+    if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal();
   });
 
   // ---------- Init ----------
@@ -500,6 +638,20 @@
   updateSpeedLabel();
   updateVolLabel();
   setFreq(freq);
+  // restore switch states
+  try { $('stationMode').checked = stationMode; } catch (e) {}
+  try { $('hideAnswer').checked = hideAnswer; } catch (e) {}
+  // restore lesson select
+  try {
+    if (_prefs.lessonIdx != null && LESSONS[_prefs.lessonIdx]) {
+      lessonSel.value = _prefs.lessonIdx;
+    }
+  } catch (e) {}
+  // restore table mode
+  if (tableMode === 'th') {
+    $('btnTableTh').classList.add('active');
+    $('btnTableEn').classList.remove('active');
+  }
   buildTable();
   loadLesson();
 
