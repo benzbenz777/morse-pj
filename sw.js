@@ -1,4 +1,4 @@
-const CACHE = 'morsethai-v7';
+const CACHE = 'morsethai-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -15,7 +15,9 @@ const ASSETS = [
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
-    caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); })
+    caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); }).catch(function (err) {
+      console.warn('[SW] addAll failed', err);
+    })
   );
   self.skipWaiting();
 });
@@ -32,9 +34,16 @@ self.addEventListener('activate', function (e) {
 
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
+  // navigation fallback: offline -> index.html
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).catch(function () { return caches.match('./index.html'); })
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(function (cached) {
-      return cached || fetch(e.request);
+      return cached || fetch(e.request).catch(function () { return cached; });
     })
   );
 });
